@@ -1,5 +1,5 @@
 # Adapted from https://github.com/StanislavPetrovV/Python-Dijkstra-BFS-A-star
-
+import time
 from collections import deque
 
 # Imports
@@ -8,6 +8,7 @@ import pygame as pg
 
 from constants import TOTAL_COLS, TILE_SIZE, TOTAL_ROWS
 from graph_utils import init_graph, get_rectangular_coords
+from ui_utils import update_screen_execution_time
 
 """
 TODO:
