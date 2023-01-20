@@ -1,5 +1,6 @@
 # Adapted from https://github.com/StanislavPetrovV/Python-Dijkstra-BFS-A-star
 import heapq
+import time
 from collections import deque
 from heapq import heappush
 
@@ -7,6 +8,7 @@ from heapq import heappush
 import pygame as pg
 
 from graph_utils import get_rectangular_coords, get_circle_coords
+from ui_utils import update_screen_execution_time
 
 """
 TODO:
@@ -215,10 +217,14 @@ def driver():
             set_screen_with_image(screen)
 
             goal_node = mouse_pos
+
+            start_time = time.process_time()
             # Get Dijkstra path
             final_node_path, path_cost = get_shortest_dijkstra_path(
                 graph=graph, start_node=start_node, goal_node=goal_node
             )
+            execution_time = time.process_time() - start_time
+            update_screen_execution_time(screen=screen, execution_time=execution_time)
 
             update_screen_path_cost(screen=screen, path_cost=path_cost)
 
