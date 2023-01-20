@@ -1,12 +1,12 @@
-
-# Adapted from https://github.com/StanislavPetrovV/Python-Dijkstra-BFS-A-star
 import heapq
+import time
 from heapq import heappush
 
 # Imports
 import pygame as pg
 
 from graph_utils import get_rectangular_coords, get_circle_coords
+from ui_utils import update_screen_execution_time, update_screen_path_cost, update_screen_nodes_searched
 
 """
 TODO:
@@ -84,7 +84,7 @@ def manhattan_distance(curr_node, goal_node):
     return x_diff + y_diff
 
 
-def get_shortest_dijkstra_path(clock, screen, graph, start_node, goal_node, visualise_search=False):
+def get_shortest_a_star_path(graph, start_node, goal_node):
     queue = []
     heappush(queue, (0, start_node))
     cost_visited = {start_node: 0}
@@ -108,9 +108,6 @@ def get_shortest_dijkstra_path(clock, screen, graph, start_node, goal_node, visu
                 heapq.heappush(queue, (new_node_cost, neigh_node))
                 cost_visited[neigh_node] = new_node_cost
                 visited[neigh_node] = curr_node
-
-        if visualise_search:
-            visualise_path_search(clock, screen, visited=visited, queue=queue)
 
     path_cost = cost_visited.get(goal_node)
     if path_cost is not None:
@@ -162,17 +159,10 @@ def set_screen_with_image(screen):
     screen.blit(background, (0, 0))
 
 
-def update_screen_with_all_node(screen, start_node, goal_node, visited):
-    pg.draw.circle(screen, pg.Color('green'), *get_circle_coords(*start_node, tile_size=TILE_SIZE))
+def update_screen_with_all_node(screen, start_node, goal_node):
+    pg.draw.circle(screen, pg.Color('black'), *get_circle_coords(*start_node, tile_size=TILE_SIZE))
     pg.draw.circle(screen, pg.Color('black'), *get_circle_coords(*goal_node, tile_size=TILE_SIZE))
 
-
-def update_screen_path_cost(screen, path_cost=0):
-    text = f"Path Cost: {path_cost}"
-    pg_large_font = pg.font.SysFont('comicsans', 30)  # Font object
-
-    text = pg_large_font.render(text, True, (0, 0, 0))  # create our text
-    screen.blit(text, (10, 3))  # draw the text to the screen
 
 
 def draw_rect_nodes(screen: pg.Surface, visited, color: pg.Color, width: int = 0, border_radius: int = -1):
@@ -181,40 +171,25 @@ def draw_rect_nodes(screen: pg.Surface, visited, color: pg.Color, width: int = 0
                      border_radius=border_radius)
 
 
-def visualise_path_search(clock, screen, visited, queue):
-    node_queue = [node_tuple[1] for node_tuple in queue]
-    draw_rect_nodes(screen, visited, color=pg.Color('forestgreen'))
-    draw_rect_nodes(screen, node_queue, color=pg.Color('darkslategray'))
-
-
-    [exit() for event in pg.event.get() if event.type == pg.QUIT]
-    pg.display.flip()
-    clock.tick(5)
-
-
 def driver():
     screen, grid, graph = init_structure_components()
     clock = pg.time.Clock()
 
     # BFS settings
     start_node = (0, 7)
-    goal_node = start_node
+    goal_node = (0, 7)  # Change to mouse click
+
     # Create a priority queue in the form of (cost, node)
     queue = []
     heappush(queue, (0, start_node))
     visited = {start_node: None}
-    curr_node = None
 
-    # Add background image
-    background = pg.image.load('images/img_with_grid.png').convert()
-    background = pg.transform.scale(background, (TOTAL_COLS * TILE_SIZE, TOTAL_ROWS * TILE_SIZE))
+    # Set UI
+    set_screen_with_image(screen)
+    update_screen_with_all_node(screen, start_node, goal_node)
+    update_screen_path_cost(screen, path_cost=0)
 
     while True:
-        # fill screen
-        screen.blit(background, (0, 0))
-
-        update_screen_path_cost(screen, path_cost=0)
-        update_screen_with_all_node(screen, start_node, goal_node, visited)
 
         # Mouse Click selects the goal node
         mouse_pos = get_click_mouse_pos(screen)
@@ -222,60 +197,28 @@ def driver():
             set_screen_with_image(screen)
 
             goal_node = mouse_pos
-            # Get Dijkstra path
-            # final_node_path, path_cost, visited = get_shortest_dijkstra_path(
-            #     clock=clock,
-            #     screen=screen, graph=graph, start_node=start_node, goal_node=goal_node,
-            #     visualise_search=True
-            # )
+            start_time = time.process_time()
+            # Get A-star path
+            final_node_path, path_cost, visited = get_shortest_a_star_path(
+                graph=graph, start_node=start_node, goal_node=goal_node,
+            )
+            execution_time = time.process_time() - start_time
+            update_screen_nodes_searched(screen=screen, n_nodes_visited=len(visited))
+            update_screen_path_cost(screen=screen, path_cost=path_cost)
+            update_screen_execution_time(screen=screen, execution_time=execution_time)
 
+            # Draw A-star path
+            draw_circle_nodes(screen, final_node_path[1:-1:], color=pg.Color("blue"))
 
-            # START HERE     ////////////////////////
-            queue = []
-            heappush(queue, (0, start_node))
-            cost_visited = {start_node: 0}
-            visited = {start_node: None}
+            # Draw Start and Goal Nodes
+            draw_circle_nodes(screen=screen, visited=[start_node], color=pg.Color('black'))
+            draw_circle_nodes(screen=screen, visited=[goal_node], color=pg.Color('red'))
 
-            while queue:
-                cost_to_node, curr_node = heapq.heappop(queue)
-
-                if curr_node == goal_node:
-                    break
-
-                adjacent_nodes = graph[curr_node]
-
-                for neigh_cost, neigh_node in adjacent_nodes:
-                    new_node_cost = neigh_cost + cost_visited[curr_node]
-
-                    if neigh_node not in cost_visited or new_node_cost < cost_visited[neigh_node]:
-                        priority = new_node_cost + manhattan_distance(neigh_node, goal_node)
-                        heapq.heappush(queue, (priority, neigh_node))
-
-                        heapq.heappush(queue, (new_node_cost, neigh_node))
-                        cost_visited[neigh_node] = new_node_cost
-                        visited[neigh_node] = curr_node
-
-            # path_cost = cost_visited.get(goal_node)
-            # if path_cost is not None:
-            #     final_node_path = get_shortest_path_from_visited_graph(visited, goal_node)
-            # update_screen_path_cost(screen=screen, path_cost=path_cost)
-
-            # Draw Dijkstra path
-            # draw_circle_nodes(screen, final_node_path[1:-1:], color=pg.Color("blue"))
-
-        path_head, path_segment = curr_node, curr_node
-        while path_segment:
-            draw_circle_nodes(screen, [path_segment], color=pg.Color("brown"))
-            path_segment = visited[path_segment]
-        # Draw start and head segment
-        draw_circle_nodes(screen, [start_node], color=pg.Color("blue"))
-        if path_segment:
-            draw_circle_nodes(screen, [path_segment], color=pg.Color("magenta"))
 
         # pygame necessary lines
         [exit() for event in pg.event.get() if event.type == pg.QUIT]
         pg.display.flip()
-        clock.tick(20)
+        clock.tick(7)
 
 
 if __name__ == "__main__":
